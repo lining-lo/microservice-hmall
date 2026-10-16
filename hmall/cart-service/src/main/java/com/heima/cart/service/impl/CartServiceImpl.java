@@ -5,26 +5,36 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
 import com.heima.cart.domain.dto.CartFormDTO;
+import com.heima.cart.domain.dto.ItemDTO;
 import com.heima.cart.domain.po.Cart;
 import com.heima.cart.domain.vo.CartVO;
 import com.heima.cart.mapper.CartMapper;
 import com.heima.cart.service.ICartService;
+import com.hmall.common.exception.BadRequestException;
 import com.hmall.common.exception.BizIllegalException;
 import com.hmall.common.utils.BeanUtils;
 import com.hmall.common.utils.CollUtils;
 import com.hmall.common.utils.UserContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements ICartService {
 
-    // private final IItemService itemService;
+    private final RestTemplate restTemplate;
 
     @Override
     public void addItem2Cart(CartFormDTO cartFormDTO) {
@@ -65,10 +75,25 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
     }
 
     private void handleCartItems(List<CartVO> vos) {
-        // 1.获取商品id TODO 处理商品信息
-        /*Set<Long> itemIds = vos.stream().map(CartVO::getItemId).collect(Collectors.toSet());
+        // 1.获取商品id
+        Set<Long> itemIds = vos.stream().map(CartVO::getItemId).collect(Collectors.toSet());
         // 2.查询商品
-        List<ItemDTO> items = itemService.queryItemByIds(itemIds);
+        // 2.1.发送请求，查询商品
+        ResponseEntity<List<ItemDTO>> response = restTemplate.exchange(
+                "http://localhost:8081/items?ids={ids}", // 请求路径
+                HttpMethod.GET, // 请求方式
+                null, // 请求实体
+                new ParameterizedTypeReference<List<ItemDTO>>() {
+                }, // 返回值类型
+                CollUtils.join(itemIds, ",") // 请求参数
+        );
+        // 2.2.处理结果
+        List<ItemDTO> items = null;
+        if (response.getStatusCode().is2xxSuccessful()) {
+            // 查询成功，获取响应结果
+            items = response.getBody();
+        }
+        // 2.3.查询失败，抛出异常
         if (CollUtils.isEmpty(items)) {
             throw new BadRequestException("购物车中商品不存在！");
         }
@@ -83,7 +108,7 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
             v.setNewPrice(item.getPrice());
             v.setStatus(item.getStatus());
             v.setStock(item.getStock());
-        }*/
+        }
     }
 
     @Override
