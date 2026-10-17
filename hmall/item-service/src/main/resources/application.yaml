@@ -3,6 +3,9 @@ server:
 spring:
   application:
     name: item-service
+  cloud:
+    nacos:
+      server-addr: 192.168.150.101 # nacos地址
   profiles:
     active: dev
   datasource:

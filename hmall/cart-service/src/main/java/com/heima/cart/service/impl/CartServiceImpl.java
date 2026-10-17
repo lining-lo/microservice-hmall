@@ -1,5 +1,6 @@
 package com.heima.cart.service.impl;
 
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -16,6 +17,8 @@ import com.hmall.common.utils.BeanUtils;
 import com.hmall.common.utils.CollUtils;
 import com.hmall.common.utils.UserContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -33,8 +36,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements ICartService {
-
     private final RestTemplate restTemplate;
+    private final DiscoveryClient discoveryClient;
 
     @Override
     public void addItem2Cart(CartFormDTO cartFormDTO) {
@@ -78,22 +81,26 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
         // 1.获取商品id
         Set<Long> itemIds = vos.stream().map(CartVO::getItemId).collect(Collectors.toSet());
         // 2.查询商品
-        // 2.1.发送请求，查询商品
+        // 2.1.发现item-service服务的实例列表
+        List<ServiceInstance> instances = discoveryClient.getInstances("item-service");
+        // 2.2.负载均衡，挑选一个实例
+        ServiceInstance instance = instances.get(RandomUtil.randomInt(instances.size()));
+        // 2.3.发送请求，查询商品
         ResponseEntity<List<ItemDTO>> response = restTemplate.exchange(
-                "http://localhost:8081/items?ids={ids}", // 请求路径
+                instance.getUri() + "/items?ids={ids}", // 请求路径
                 HttpMethod.GET, // 请求方式
                 null, // 请求实体
                 new ParameterizedTypeReference<List<ItemDTO>>() {
                 }, // 返回值类型
                 CollUtils.join(itemIds, ",") // 请求参数
         );
-        // 2.2.处理结果
+        // 2.4.处理结果
         List<ItemDTO> items = null;
         if (response.getStatusCode().is2xxSuccessful()) {
             // 查询成功，获取响应结果
             items = response.getBody();
         }
-        // 2.3.查询失败，抛出异常
+        // 2.5.查询失败，抛出异常
         if (CollUtils.isEmpty(items)) {
             throw new BadRequestException("购物车中商品不存在！");
         }
