@@ -1,8 +1,8 @@
 package com.heima.trade.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.heima.api.client.CartClient;
 import com.heima.api.client.ItemClient;
+import com.heima.api.client.TradeClient;
 import com.heima.api.dto.ItemDTO;
 import com.heima.api.dto.OrderDetailDTO;
 import com.heima.trade.domain.dto.OrderFormDTO;
@@ -30,7 +30,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
 
     private final ItemClient itemClient;
     private final IOrderDetailService detailService;
-    private final CartClient cartClient;
+    private final TradeClient tradeClient;
 
     @Override
     @Transactional
@@ -66,7 +66,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         detailService.saveBatch(details);
 
         // 3.清理购物车商品
-        cartClient.removeByItemIds(itemIds);
+        tradeClient.removeByItemIds(itemIds);
 
         // 4.扣减库存
         try {
