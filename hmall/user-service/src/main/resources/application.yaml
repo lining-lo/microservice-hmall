@@ -22,7 +22,7 @@ mybatis-plus:
       id-type: auto
 logging:
   level:
-    com.hmall: debug
+    com.heima: debug
   pattern:
     dateformat: HH:mm:ss:SSS
   file:
@@ -41,7 +41,7 @@ knife4j:
         group-name: default
         api-rule: package
         api-rule-resources:
-          - com.hmall.user.controller
+          - com.heima.user.controller
 hm:
   jwt:
     location: classpath:hmall.jks
