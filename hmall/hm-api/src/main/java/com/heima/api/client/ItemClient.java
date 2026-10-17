@@ -1,6 +1,6 @@
-package com.heima.cart.client;
+package com.heima.api.client;
 
-import com.heima.cart.domain.dto.ItemDTO;
+import com.heima.api.dto.ItemDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
