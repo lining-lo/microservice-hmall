@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 
+import com.heima.cart.client.ItemClient;
 import com.heima.cart.domain.dto.CartFormDTO;
 import com.heima.cart.domain.dto.ItemDTO;
 import com.heima.cart.domain.po.Cart;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements ICartService {
     private final RestTemplate restTemplate;
     private final DiscoveryClient discoveryClient;
+    private final ItemClient itemClient;
 
     @Override
     public void addItem2Cart(CartFormDTO cartFormDTO) {
@@ -81,7 +83,7 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
         // 1.获取商品id
         Set<Long> itemIds = vos.stream().map(CartVO::getItemId).collect(Collectors.toSet());
         // 2.查询商品
-        // 2.1.发现item-service服务的实例列表
+        /*// 2.1.发现item-service服务的实例列表
         List<ServiceInstance> instances = discoveryClient.getInstances("item-service");
         // 2.2.负载均衡，挑选一个实例
         ServiceInstance instance = instances.get(RandomUtil.randomInt(instances.size()));
@@ -99,7 +101,8 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
         if (response.getStatusCode().is2xxSuccessful()) {
             // 查询成功，获取响应结果
             items = response.getBody();
-        }
+        }*/
+        List<ItemDTO> items = itemClient.queryItemByIds(itemIds);
         // 2.5.查询失败，抛出异常
         if (CollUtils.isEmpty(items)) {
             throw new BadRequestException("购物车中商品不存在！");
