@@ -3,15 +3,13 @@ package com.heima.cart.service.impl;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-
+import com.heima.api.client.ItemClient;
+import com.heima.api.dto.ItemDTO;
 import com.heima.cart.domain.dto.CartFormDTO;
 import com.heima.cart.domain.po.Cart;
 import com.heima.cart.domain.vo.CartVO;
 import com.heima.cart.mapper.CartMapper;
 import com.heima.cart.service.ICartService;
-import com.heima.api.client.ItemClient;
-import com.heima.api.dto.ItemDTO;
-import com.hmall.common.exception.BadRequestException;
 import com.hmall.common.exception.BizIllegalException;
 import com.hmall.common.utils.BeanUtils;
 import com.hmall.common.utils.CollUtils;
@@ -32,6 +30,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements ICartService {
+    //private final IItemService itemService;
     private final RestTemplate restTemplate;
     private final DiscoveryClient discoveryClient;
     private final ItemClient itemClient;
@@ -62,14 +61,17 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
     @Override
     public List<CartVO> queryMyCarts() {
         // 1.查询我的购物车列表
-        List<Cart> carts = lambdaQuery().eq(Cart::getUserId, 1L /*TODO UserContext.getUser()*/).list();
+        List<Cart> carts = lambdaQuery().eq(Cart::getUserId, UserContext.getUser()).list();
         if (CollUtils.isEmpty(carts)) {
             return CollUtils.emptyList();
         }
+
         // 2.转换VO
         List<CartVO> vos = BeanUtils.copyList(carts, CartVO.class);
+
         // 3.处理VO中的商品信息
         handleCartItems(vos);
+
         // 4.返回
         return vos;
     }
@@ -77,30 +79,13 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
     private void handleCartItems(List<CartVO> vos) {
         // 1.获取商品id
         Set<Long> itemIds = vos.stream().map(CartVO::getItemId).collect(Collectors.toSet());
-        // 2.查询商品
-        /*// 2.1.发现item-service服务的实例列表
-        List<ServiceInstance> instances = discoveryClient.getInstances("item-service");
-        // 2.2.负载均衡，挑选一个实例
-        ServiceInstance instance = instances.get(RandomUtil.randomInt(instances.size()));
-        // 2.3.发送请求，查询商品
-        ResponseEntity<List<ItemDTO>> response = restTemplate.exchange(
-                instance.getUri() + "/items?ids={ids}", // 请求路径
-                HttpMethod.GET, // 请求方式
-                null, // 请求实体
-                new ParameterizedTypeReference<List<ItemDTO>>() {
-                }, // 返回值类型
-                CollUtils.join(itemIds, ",") // 请求参数
-        );
-        // 2.4.处理结果
-        List<ItemDTO> items = null;
-        if (response.getStatusCode().is2xxSuccessful()) {
-            // 查询成功，获取响应结果
-            items = response.getBody();
-        }*/
-        List<ItemDTO> items = itemClient.queryItemByIds(itemIds);
-        // 2.5.查询失败，抛出异常
+
+        // 2.远程调用，查询商品信息
+        //List<ItemDTO> items = itemService.queryItemByIds(itemIds);
+        List<ItemDTO> items = remoteCall(itemIds);
+
         if (CollUtils.isEmpty(items)) {
-            throw new BadRequestException("购物车中商品不存在！");
+            return;
         }
         // 3.转为 id 到 item的map
         Map<Long, ItemDTO> itemMap = items.stream().collect(Collectors.toMap(ItemDTO::getId, Function.identity()));
@@ -113,7 +98,66 @@ public class CartServiceImpl extends ServiceImpl<CartMapper, Cart> implements IC
             v.setNewPrice(item.getPrice());
             v.setStatus(item.getStatus());
             v.setStock(item.getStock());
+            v.setName(item.getName());
         }
+    }
+
+    /**
+     * 远程调用商品服务，查询商品详情  -> http://localhost:8081/items?ids=1,2,3
+     *
+     * @param itemIds
+     * @return
+     */
+    private List<ItemDTO> remoteCall(Set<Long> itemIds) {
+        String ids = itemIds.stream().map(String::valueOf).collect(Collectors.joining(","));
+        ids = StrUtil.join(",", itemIds);
+        String url = "http://localhost:8081/items";
+
+        // 2.1、 方式一：Hutool工具远程调用查询（HttpURLConnection）
+        /*String resultJson1 = HttpUtil.get(url, Map.of("ids", ids));
+        List<ItemDTO> items1 = JSONUtil.toList(resultJson1, ItemDTO.class);
+
+        // 2.2、方式二：HttpClient远程调用查询（Apache HttpClient）需要在common工程导入依赖
+        String resultJson2 = HttpClientUtil.doGet(url, Map.of("ids", ids), null);
+        List<ItemDTO> items2 = JSONUtil.toList(resultJson2, ItemDTO.class);
+
+        // 2.3、方式三：若依http工具类远程调用查询（URLConnection）
+        String resultJson3 = HttpUtils.sendGet(url, "ids=" + ids);
+        List<ItemDTO> items3 = JSONUtil.toList(resultJson3, ItemDTO.class);
+
+        // 2.4、方式四：RestTemplate远程调用查询
+        //String resultJson4 = restTemplate.getForObject("http://localhost:8081/items?ids={ids}", String.class, Map.of("ids", ids));
+        String resultJson4 = restTemplate.getForObject("http://localhost:8081/items?ids={ids}", String.class, ids);
+        List<ItemDTO> items4 = JSONUtil.toList(resultJson4, ItemDTO.class);
+
+        // 2.4、方式四：RestTemplate远程调用查询
+        ResponseEntity<List<ItemDTO>> response1 = restTemplate.exchange(
+                "http://localhost:8081/items?ids={ids}",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<ItemDTO>>() {},
+                ids  // Map.of("ids",ids)
+        );
+        List<ItemDTO> items5 = response1.getBody();*/
+
+        // 2.6、方式五：DiscoveryClient 远程调用查询
+        /*List<ServiceInstance> instances = discoveryClient.getInstances("item-service");
+        ServiceInstance instance = instances.get(RandomUtil.randomInt(instances.size()));
+        URI uri = instance.getUri();
+
+        ResponseEntity<List<ItemDTO>> response = restTemplate.exchange(
+                uri + "/items?ids={ids}",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<List<ItemDTO>>() {},
+                ids // Map.of("ids",ids)
+        );
+        List<ItemDTO> items6 = response.getBody();*/
+
+        //2.7、Feign声明式远程调用
+        List<ItemDTO> items7 = itemClient.queryItemByIds(itemIds);
+
+        return items7;
     }
 
     @Override

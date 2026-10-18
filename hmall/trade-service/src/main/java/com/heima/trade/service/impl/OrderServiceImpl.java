@@ -1,18 +1,18 @@
 package com.heima.trade.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.heima.api.client.CartClient;
 import com.heima.api.client.ItemClient;
-import com.heima.api.client.TradeClient;
 import com.heima.api.dto.ItemDTO;
 import com.heima.api.dto.OrderDetailDTO;
+import com.hmall.common.exception.BadRequestException;
+import com.hmall.common.utils.UserContext;
 import com.heima.trade.domain.dto.OrderFormDTO;
 import com.heima.trade.domain.po.Order;
 import com.heima.trade.domain.po.OrderDetail;
 import com.heima.trade.mapper.OrderMapper;
 import com.heima.trade.service.IOrderDetailService;
 import com.heima.trade.service.IOrderService;
-import com.hmall.common.exception.BadRequestException;
-import com.hmall.common.utils.UserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,9 +28,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements IOrderService {
 
-    private final ItemClient itemClient;
     private final IOrderDetailService detailService;
-    private final TradeClient tradeClient;
+    private final ItemClient itemClient;
+    private final CartClient cartClient;
 
     @Override
     @Transactional
@@ -66,7 +66,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         detailService.saveBatch(details);
 
         // 3.清理购物车商品
-        tradeClient.removeByItemIds(itemIds);
+        cartClient.deleteCartItemByIds(itemIds);
 
         // 4.扣减库存
         try {

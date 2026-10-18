@@ -51,8 +51,11 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             response.setRawStatusCode(401);
             return response.setComplete();
         }
-        // TODO 5.如果有效，传递用户信息
-        System.out.println("userId = " + userId);
+        // 如果有效，传递用户信息
+        String userInfo = userId.toString();
+        exchange.mutate() // mutate就是对下游请求做更改
+                .request(builder -> builder.header("user-info", userInfo))
+                .build();
         // 6.放行
         return chain.filter(exchange);
     }
