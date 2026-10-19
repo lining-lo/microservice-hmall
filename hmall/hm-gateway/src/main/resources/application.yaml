@@ -7,7 +7,7 @@ spring:
     active: dev
   cloud:
     nacos:
-      server-addr: 192.168.150.101 # nacso地址
+      server-addr: 129.204.196.49 # nacso地址
     gateway:
       routes:
         - id: item-service
