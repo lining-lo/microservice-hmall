@@ -4,6 +4,8 @@ feign:
   okhttp:
     enabled: true # 开启OKHttp连接池支持
 hm:
+  cart:
+    maxAmount: 3
   swagger:
     title: 购物车服务接口文档
     package: com.heima.cart.controller
