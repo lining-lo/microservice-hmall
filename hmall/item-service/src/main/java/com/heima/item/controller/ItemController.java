@@ -1,6 +1,5 @@
 package com.heima.item.controller;
 
-
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.heima.item.domain.dto.ItemDTO;
 import com.heima.item.domain.dto.OrderDetailDTO;
@@ -36,6 +35,11 @@ public class ItemController {
     @ApiOperation("根据id批量查询商品")
     @GetMapping
     public List<ItemDTO> queryItemByIds(@RequestParam("ids") List<Long> ids) {
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         return itemService.queryItemByIds(ids);
     }
 

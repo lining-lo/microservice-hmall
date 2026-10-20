@@ -1,5 +1,6 @@
 package com.heima.api.client;
 
+import com.heima.api.client.fallback.ItemClientFallback;
 import com.heima.api.dto.ItemDTO;
 import com.heima.api.dto.OrderDetailDTO;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -12,7 +13,7 @@ import java.util.Collection;
 import java.util.List;
 
 
-@FeignClient(name = "item-service")
+@FeignClient(name = "item-service",fallbackFactory = ItemClientFallback.class)
 public interface ItemClient {
     @GetMapping("items")
     List<ItemDTO> queryItemByIds(@RequestParam("ids") Collection<Long> ids);
