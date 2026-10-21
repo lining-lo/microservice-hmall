@@ -18,7 +18,7 @@ public class ItemServiceImpl extends ServiceImpl<ItemMapper, Item> implements II
 
     @Override
     public void deductStock(List<OrderDetailDTO> items) {
-        String sqlStatement = "com.hmall.mapper.ItemMapper.updateStock";
+        String sqlStatement = "com.heima.item.mapper.ItemMapper.updateStock";
         boolean r = false;
         try {
             r = executeBatch(items, (sqlSession, entity) -> sqlSession.update(sqlStatement, entity));
