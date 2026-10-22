@@ -1,2 +1,3 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-  com.heima.api.config.ApiAutoConfiguration
+  com.heima.api.config.ApiAutoConfiguration,\
+  com.heima.api.config.MqConverterConfig

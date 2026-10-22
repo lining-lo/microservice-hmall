@@ -5,6 +5,8 @@ import com.heima.api.client.CartClient;
 import com.heima.api.client.ItemClient;
 import com.heima.api.dto.ItemDTO;
 import com.heima.api.dto.OrderDetailDTO;
+import com.heima.trade.constants.MqConstants;
+import com.hmall.common.domain.MultiDelayMessage;
 import com.hmall.common.exception.BadRequestException;
 import com.hmall.common.utils.UserContext;
 import com.heima.trade.domain.dto.OrderFormDTO;
@@ -15,6 +17,8 @@ import com.heima.trade.service.IOrderDetailService;
 import com.heima.trade.service.IOrderService;
 import io.seata.spring.annotation.GlobalTransactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +36,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
     private final IOrderDetailService detailService;
     private final ItemClient itemClient;
     private final CartClient cartClient;
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     @GlobalTransactional
@@ -75,6 +80,18 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         } catch (Exception e) {
             throw new RuntimeException("库存不足！");
         }
+
+        // 5.发送MQ消息，延迟查询订单支付状态
+        try {
+            // 5.1.组织消息，延迟时长为: 10秒(6次)、20秒(3次)、1分钟(3次)、5分钟、10分钟、10分钟共15次延迟查询
+            MultiDelayMessage<Long> msg = MultiDelayMessage.of(order.getId(),
+                    10000L, 10000L, 10000L, 10000L);
+            // 5.2.发送延迟消息
+            rabbitTemplate.convertAndSend(MqConstants.DELAY_EXCHANGE, MqConstants.DELAY_ORDER_ROUTING_KEY, msg);
+        } catch (AmqpException e) {
+            log.error("消息发送异常", e);
+        }
+
         return order.getId();
     }
 
@@ -85,6 +102,18 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
         order.setStatus(2);
         order.setPayTime(LocalDateTime.now());
         updateById(order);
+    }
+
+    @Override
+    public void cancelOrder(Long orderId) {
+        // 1.修改订购单状态为已取消
+        this.lambdaUpdate()
+                .set(Order::getStatus, 5)
+                .set(Order::getCloseTime, LocalDateTime.now())
+                .eq(Order::getId, orderId)
+                .update();
+
+        // 2.远程调用商品服务回填库存 TODO
     }
 
     private List<OrderDetail> buildDetails(Long orderId, List<ItemDTO> items, Map<Long, Integer> numMap) {
